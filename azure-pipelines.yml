@@ -8,7 +8,7 @@ pool:
 steps:
 - task: AzureCLI@2
   inputs:
-    azureSubscription: 'ECOAzDevOps-DevOps-DSR'
+    azureSubscription: 'azure(9909fced-8203-44b6-af68-11f833a37e60)'
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
     inlineScript: 'az config set extension.use_dynamic_install=yes_without_prompt'
@@ -17,7 +17,7 @@ steps:
 
 - task: AzureCLI@2
   inputs:
-    azureSubscription: 'ECOAzDevOps-DevOps-DSR'
+    azureSubscription: 'azure(9909fced-8203-44b6-af68-11f833a37e60)'
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
     inlineScript: 'echo $(PAT) | az login --organization https://dev.azure.com/clagos353'
