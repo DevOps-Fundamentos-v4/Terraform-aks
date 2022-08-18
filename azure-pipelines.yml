@@ -6,44 +6,10 @@ pool:
   vmImage: ubuntu-latest
 
 steps:
-- task: terraformstaticcodeanalyzer@1
-  inputs:
-    tfsecversion: '0.58.6'
-  displayName: Install Terraform code analyzer
-#- task: DockerInstaller@0
-#  inputs:
-#    dockerVersion: '17.09.0-ce'
-
-#- task: Docker@2
-#  inputs:
-#    containerRegistry: 'Docker'
-#    command: 'login'
-
-#- script: |
-#     docker pull aquasec/trivy
-#     docker run -v /var/run/docker.sock:/var/run/docker.sock -v $(Pipeline.Workspace):/app --rm aquasec/trivy config $(Pipeline.Workspace) 
-    
-- script: | 
-     sudo apt-get install -y rpm
-     wget https://github.com/aquasecurity/trivy/releases/download/v0.27.1/trivy_0.27.1_Linux-64bit.deb
-     sudo dpkg -i trivy_0.27.1_Linux-64bit.deb
-     trivy config $(Pipeline.Workspace)
-
-- script: |
-    cd /usr/local/bin 
-    ./tfsec $(Pipeline.Workspace)
-  continueOnError: true
-  displayName: Terraform scan
-  
-- script: |
-    ssh-keygen -t rsa -b 4096 -N "VeryStrongSecret123!" -C "clagos353@gmail.com" -q -f ~/.ssh/id_rsa
-    SSH_KEY=$(cat ~/.ssh/id_rsa.pub)
-    echo $SSH_KEY
-  displayName: Configuracion SSH
   
 - task: TerraformInstaller@0
   inputs:
-    terraformVersion: '1.3.0'
+    terraformVersion: '1.2.3'
   displayName: Instalacion Terraform
 
 - task: TerraformCLI@0
