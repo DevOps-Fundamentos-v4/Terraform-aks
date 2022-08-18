@@ -6,13 +6,45 @@ pool:
   vmImage: ubuntu-latest
 
 steps:
+- task: terraformstaticcodeanalyzer@1
+  inputs:
+    tfsecversion: '0.58.6'
+  displayName: Install Terraform code analyzer
+#- task: DockerInstaller@0
+#  inputs:
+#    dockerVersion: '17.09.0-ce'
 
+#- task: Docker@2
+#  inputs:
+#    containerRegistry: 'Docker'
+#    command: 'login'
+
+#- script: |
+#     docker pull aquasec/trivy
+#     docker run -v /var/run/docker.sock:/var/run/docker.sock -v $(Pipeline.Workspace):/app --rm aquasec/trivy config $(Pipeline.Workspace) 
+    
+- script: | 
+     sudo apt-get install -y rpm
+     wget https://github.com/aquasecurity/trivy/releases/download/v0.27.1/trivy_0.27.1_Linux-64bit.deb
+     sudo dpkg -i trivy_0.27.1_Linux-64bit.deb
+     trivy config $(Pipeline.Workspace)
+
+- script: |
+    cd /usr/local/bin 
+    ./tfsec $(Pipeline.Workspace)
+  continueOnError: true
+  displayName: Terraform scan
+  
+- script: |
+    ssh-keygen -t rsa -b 4096 -N "VeryStrongSecret123!" -C "clagos353@gmail.com" -q -f ~/.ssh/id_rsa
+    SSH_KEY=$(cat ~/.ssh/id_rsa.pub)
+    echo $SSH_KEY
+  displayName: Configuracion SSH
+  
 - task: TerraformInstaller@0
   inputs:
     terraformVersion: 'latest'
   displayName: Instalacion Terraform
-
-
 
 - task: TerraformCLI@0
   inputs:
@@ -21,7 +53,7 @@ steps:
     backendServiceArm: 'azure(9909fced-8203-44b6-af68-11f833a37e60)'
     allowTelemetryCollection: true
   displayName: Terraform init
-
+  continueOnError: true
 - task: TerraformCLI@0
   inputs:
     command: 'plan'
@@ -30,12 +62,12 @@ steps:
     commandOptions: '-var ssh_key="$SSH_KEY"'
     allowTelemetryCollection: true
   displayName: Terraform plan
-  
+  continueOnError: true
 - task: TerraformCLI@0
   inputs:
     command: 'import'
     environmentServiceName: 'azure(9909fced-8203-44b6-af68-11f833a37e60)'
-    runAzLogin: false
+    runAzLogin: true
     commandOptions: '-var ssh_key="$SSH_KEY"'
     allowTelemetryCollection: true
     resourceAddress: 'module.cluster.azurerm_resource_group.aks-getting-started'
@@ -47,6 +79,36 @@ steps:
   inputs:
     command: 'apply'
     environmentServiceName: 'azure(9909fced-8203-44b6-af68-11f833a37e60)'
-    runAzLogin: false
+    runAzLogin: true
+    #commandOptions: '-var ssh_key="$SSH_KEY"'
     allowTelemetryCollection: true
   displayName: Terraform apply
+  continueOnError: true
+
+- task: UseRubyVersion@0
+  displayName: 'Install Ruby'
+  inputs:
+    versionSpec: '>= 2.5'
+    addToPath: true 
+
+- script: gem install inspec-bin
+  displayName: 'Install inspec-bin' 
+
+- task: Bash@3
+  displayName: 'Run inspec tests'
+  inputs:
+    targetType: inline
+    script: |
+            export AZURE_SUBSCRIPTION_ID="$(SUBSCRIPTION_ID)"
+            export AZURE_CLIENT_ID="$(CLIENT_ID)"
+            export AZURE_CLIENT_SECRET="$(CLIENTE_SECRET)"
+            export AZURE_TENANT_ID="$(TENANT_ID)"
+            inspec init profile --platform azure azure-inspec-tests --chef-license=accept
+            inspec exec ./azure-inspec-tests/ -t azure:// --chef-license=accept --reporter cli junit:inspectestresults.xml
+    
+- task: PublishTestResults@2
+  displayName: Publish inspec test results
+  condition: succeededOrFailed()
+  inputs:
+    testResultsFiles: '**/inspectestresults.xml'
+    mergeTestResults: true
